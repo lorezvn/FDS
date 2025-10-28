@@ -12,7 +12,7 @@ def get_best_model(X_train, y_train):
     param_grid = {
         'logisticregression__C': [0.01, 0.1, 1, 10],
         'logisticregression__penalty': ['l1', 'l2'],
-        'logisticregression__solver': ['liblinear']
+        'logisticregression__solver': ['liblinear', 'lbfgs']
     }
 
     # Create the GridSearchCV object

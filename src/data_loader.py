@@ -25,7 +25,7 @@ def display_battle(battle_id, train_data):
         
         # To keep the output clean, we can create a copy and truncate the timeline
         battle_for_display = first_battle.copy()
-        battle_for_display['battle_timeline'] = battle_for_display.get('battle_timeline', [])[:2] # Show first 2 turns
+        battle_for_display['battle_timeline'] = battle_for_display.get('battle_timeline', [])
         
         # Use json.dumps for pretty-printing the dictionary
         print(json.dumps(battle_for_display, indent=4))
