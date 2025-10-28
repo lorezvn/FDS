@@ -1,13 +1,49 @@
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.model_selection import KFold, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
+
+def get_best_model(X_train, y_train):
+
+    pipe = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, random_state=42))
+
+    # Define the parameter grid to search
+    param_grid = {
+        'logisticregression__C': [0.01, 0.1, 1, 10],
+        'logisticregression__penalty': ['l1', 'l2'],
+        'logisticregression__solver': ['liblinear']
+    }
+
+    # Create the GridSearchCV object
+    grid_logreg = GridSearchCV(
+        estimator=pipe,
+        param_grid=param_grid,
+        scoring='accuracy',
+        n_jobs=4,        # use 4 cores in parallel
+        cv=5,            # 5-fold cross-validation, more on this later
+        refit=True,      # retrain the best model on the full training set
+        return_train_score=True
+    )
+
+    # Fit the GridSearchCV object on the training data
+    grid_logreg.fit(X_train, y_train)
+
+    # Print the best accuracy score found during grid search
+    best_score = grid_logreg.best_score_
+    print("Best accuracy score:", best_score)
+
+    # Extract the best hyperparameter combination
+    best_params = grid_logreg.best_params_
+    print("\nBest hyperparameters:")
+    print(best_params)
+
+    return grid_logreg.best_estimator_
 
 
 def cross_validate(model, X_train, y_train): 
 
-    kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
     # split()  method generate indices to split data into training and test set.
     print()
@@ -49,9 +85,8 @@ def train_and_evaluate(train_df, test_df):
 
     X_test = test_df[features]
 
-    # Create pipeline
-    model = make_pipeline(StandardScaler(), 
-                        LogisticRegression(random_state=42, max_iter=1000))
+    # Get the best model
+    model = get_best_model(X_train, y_train)
 
     cross_validate(model, X_train, y_train)
 
