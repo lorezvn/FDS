@@ -15,7 +15,7 @@ def static_features(battle: dict) -> dict:
     p1_team = battle.get('p1_team_details', [])
     features['p1_team_diversity'] = len(set(t for p in p1_team for t in p.get('types', []) if t != "notype"))
     if p1_team:
-        features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
+        #features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
         
         # Average stats for p1 team
         for stat in stats:
@@ -25,7 +25,7 @@ def static_features(battle: dict) -> dict:
     # --- Player 2 Lead Features ---
     p2_lead = battle.get('p2_lead_details')
     if p2_lead:
-        features['p2_crit_rate'] = crit_rate(p2_lead.get('base_spe', 0))
+        #features['p2_crit_rate'] = crit_rate(p2_lead.get('base_spe', 0))
         
         # Stats for lead pokemon p2
         for stat in stats:
@@ -71,11 +71,17 @@ def extract_status_features(battle):
 
     features['status_diff'] = p1_score - p2_score
     return features
-    
+
+def first_move_advantage(battle, pokedex):
+    features = {}
+    return features
+
 # TODO - Risistemare
 def dynamic_features(battle: dict) -> dict:
 
-    features = {'p1_ko_count': 0, 'p2_ko_count': 0}
+    features = {
+        'p1_ko_count': 0, 'p2_ko_count': 0, 
+    }
 
     p1_hp_loss = 0.0
     p2_hp_loss = 0.0
@@ -125,16 +131,18 @@ def dynamic_features(battle: dict) -> dict:
             
         if p2_status == 'fnt': 
             features['p2_ko_count'] += 1
+
+    return features
     
 
-def create_features(data: list[dict]) -> pd.DataFrame:
+def create_features(data: list[dict], pokedex) -> pd.DataFrame:
     """
     A very basic feature extraction function.
     It only uses the aggregated base stats of the player's team and opponent's lead.
     """
     feature_list = []
     for battle in tqdm(data, desc="Extracting features"):
-        if battle.get('battle_id') == 4877: continue
+        #if battle.get('battle_id') == 4877: continue
         
         features = {}
 

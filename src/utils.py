@@ -3,7 +3,7 @@ from .constants import stats
 
 def create_pokedex(data):
     pokedex = {}
-    for battle in tqdm(data, desc="Create pokedex"):
+    for battle in tqdm(data, desc="Creating pokedex"):
         
         p1_team = battle.get('p1_team_details', [])
         p2_lead = battle.get('p2_lead_details')
