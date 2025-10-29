@@ -1,6 +1,8 @@
 from src.data_loader import load_jsonl, display_battle
 from src.features import create_features, analyze_defense, vulnerability_score
 from src.model import train_and_evaluate
+from src.utils import create_pokedex
+from pprint import pprint
 
 def main():
     TRAIN_PATH = "Dataset/train.jsonl"
@@ -11,6 +13,11 @@ def main():
     print(f"Successfully loaded {len(train_data)} battles.")
     #display_battle(0, train_data)
     test_data = load_jsonl(TEST_PATH)
+
+    #pokedex = create_pokedex(test_data)
+    #print(f"# Pokemons {len(pokedex)}")
+    #pprint(pokedex)
+    #return
 
     print("\nProcessing training data...")
     train_df = create_features(train_data)

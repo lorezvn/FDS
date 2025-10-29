@@ -1,48 +1,21 @@
 import pandas as pd
 from tqdm import tqdm
 import numpy as np
-from .constants import types_dict
+from .constants import stats
 
-def analyze_defense(pokemon):
-    def_types = [t for t in pokemon.get('types', []) if t != "notype"]
-
-    multipliers = {}
-    for atk_type in types_dict:
-        if any(atk_type in types_dict[def_type]["immune"] for def_type in def_types):
-            m = 0.0
-        else:
-            m = 1.0
-            for def_type in def_types:
-                m *= (2.0 if atk_type in types_dict[def_type]["weakness"] else 1.0)
-                m *= (0.5 if atk_type in types_dict[def_type]["resistence"] else 1.0)
-
-        multipliers[atk_type] = m
-    
-    buckets = {"0x":[], "1/4x":[], "1/2x":[], "2x":[], "4x":[]}
-    for atk, m in multipliers.items():
-        if m == 0.0: buckets["0x"].append(atk)
-        elif m == 0.25: buckets["1/4x"].append(atk)
-        elif m == 0.5: buckets["1/2x"].append(atk)
-        elif m == 2.0: buckets["2x"].append(atk)
-        elif m == 4.0: buckets["4x"].append(atk)
-        else:
-            pass
-    return buckets
-
-def vulnerability_score(pokemon):
-    interactions = analyze_defense(pokemon)
-    weights = {'0x': 4, '1/4x': 3, '1/2x': 2, '2x': -3, '4x': -6}
-    return sum(len(interactions[key]) * weights[key] for key in interactions)
+def crit_rate(base_speed):
+    rate = base_speed * 100 / 512
+    return round(rate, 4)
 
 def static_features(battle: dict) -> dict: 
 
     features = {}
-    stats = ["hp", "spe", "atk", "def", "spd", "spa"]
 
     # --- Player 1 Team Features ---
     p1_team = battle.get('p1_team_details', [])
+    features['p1_team_diversity'] = len(set(t for p in p1_team for t in p.get('types', []) if t != "notype"))
     if p1_team:
-        features['p1_def_score'] = np.mean([vulnerability_score(p) for p in p1_team])
+        features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
         
         # Average stats for p1 team
         for stat in stats:
@@ -52,7 +25,7 @@ def static_features(battle: dict) -> dict:
     # --- Player 2 Lead Features ---
     p2_lead = battle.get('p2_lead_details')
     if p2_lead:
-        features['p2_def_score'] = vulnerability_score(p2_lead) 
+        features['p2_crit_rate'] = crit_rate(p2_lead.get('base_spe', 0))
         
         # Stats for lead pokemon p2
         for stat in stats:
@@ -77,48 +50,32 @@ def static_features(battle: dict) -> dict:
 
     return features
 
-# Get supereffective and not very effective moves 
-def moves(battle):
-    p1_team = battle.get('p1_team_details', [])
+# status info with weights 
+def extract_status_features(battle):
+    status_weights = {"slp": 3, "frz": 4, "par": 2,"tox": 1.5, "psn": 1,"brn": 0.5}
+
+    features = {}
+
     battle_timeline = battle.get('battle_timeline', [])
-
-    p1_def = {p["name"]: analyze_defense(p) for p in p1_team}
-
-    nve_hits, se_hits = 0, 0
-    prev_hp = {}
+    p1_score = 0.0
+    p2_score = 0.0
 
     for turn in battle_timeline:
-        p1_state = turn.get('p1_pokemon_state', {})
-        p2_move = turn.get('p2_move_details', {})
-        if not p2_move:
-            continue
-        p1_name = p1_state.get('name')
-        p1_hp = p1_state.get('hp_pct')
-        move_type = p2_move.get('type', "")
-        base_power = p2_move.get('base_power', 0)
-        
-        if not p1_name or not move_type or base_power <= 0:
-            continue
+        p1_status = turn.get('p1_pokemon_state', {}).get('status')
+        p2_status = turn.get('p2_pokemon_state', {}).get('status')
 
-        # Previous hp
-        prev = prev_hp.get(p1_name)
+        if p1_status in status_weights:
+            p1_score += status_weights[p1_status]
+        if p2_status in status_weights:
+            p2_score += status_weights[p2_status]
 
-        hit = (isinstance(p1_hp, (int, float)) and isinstance(prev, (int, float)) and p1_hp < prev)
-        if hit:
-            resistence = p1_def[p1_name]['1/2x'] + p1_def[p1_name]['1/4x']
-            weakness = p1_def[p1_name]['2x'] + p1_def[p1_name]['4x']
-            if move_type.lower() in weakness:
-                se_hits += 1
-            elif move_type.lower() in resistence:
-                nve_hits += 1
-        
-        prev_hp[p1_name] = p1_hp
-    return nve_hits, se_hits
+    features['status_diff'] = p1_score - p2_score
+    return features
     
 # TODO - Risistemare
 def dynamic_features(battle: dict) -> dict:
 
-    features = {}
+    features = {'p1_ko_count': 0, 'p2_ko_count': 0}
 
     p1_hp_loss = 0.0
     p2_hp_loss = 0.0
@@ -150,14 +107,8 @@ def dynamic_features(battle: dict) -> dict:
         prev_p1_hp = p1_hp
         prev_p2_hp = p2_hp
 
-        # Number of fainted pokemons
-        if p1_status == 'fnt': 
-            key = "p1_ko_count"
-            features[key] = features.get(key, 0) + 1
-            
-        if p2_status == 'fnt': 
-            key = "p2_ko_count"
-            features[key] = features.get(key, 0) + 1
+        features['p1_hp_loss'] = round(p1_hp_loss * 100, 2) 
+        features['p2_hp_loss'] = round(p2_hp_loss * 100, 2)
 
         # Number of turns with altered status
         if p1_status not in ['nostatus', 'fnt']:
@@ -168,14 +119,12 @@ def dynamic_features(battle: dict) -> dict:
             key = 'p2_bad_status'
             features[key] = features.get(key, 0) + 1
 
-
-    nve_hits, se_hits = moves(battle)
-    features['p1_hp_loss'] = round(p1_hp_loss * 100, 2) 
-    features['p2_hp_loss'] = round(p2_hp_loss * 100, 2)
-    features['nve_hits'] = nve_hits 
-    features['se_hits'] = se_hits
+        # Number of fainted pokemons
+        if p1_status == 'fnt': 
+            features['p1_ko_count'] += 1
             
-    return features
+        if p2_status == 'fnt': 
+            features['p2_ko_count'] += 1
     
 
 def create_features(data: list[dict]) -> pd.DataFrame:
@@ -185,8 +134,11 @@ def create_features(data: list[dict]) -> pd.DataFrame:
     """
     feature_list = []
     for battle in tqdm(data, desc="Extracting features"):
+        if battle.get('battle_id') == 4877: continue
+        
         features = {}
 
+        features.update(extract_status_features(battle))
         features.update(static_features(battle))
         features.update(dynamic_features(battle))
 

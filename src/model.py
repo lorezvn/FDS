@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, GridSearchCV, cross_val_score
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
@@ -12,7 +12,7 @@ def get_best_model(X_train, y_train):
     param_grid = {
         'logisticregression__C': [0.01, 0.1, 1, 10],
         'logisticregression__penalty': ['l1', 'l2'],
-        'logisticregression__solver': ['liblinear', 'lbfgs']
+        'logisticregression__solver': ['liblinear']
     }
 
     # Create the GridSearchCV object
@@ -43,7 +43,7 @@ def get_best_model(X_train, y_train):
 
 def cross_validate(model, X_train, y_train): 
 
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
     # split()  method generate indices to split data into training and test set.
     print()
