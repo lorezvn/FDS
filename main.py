@@ -2,6 +2,7 @@ from src.data_loader import load_jsonl, display_battle
 from src.features import create_features
 from src.model import train_and_evaluate
 from src.utils import create_pokedex
+from src.utils import get_p2_team
 
 def main():
     TRAIN_PATH = "Dataset/train.jsonl"

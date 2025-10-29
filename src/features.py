@@ -2,34 +2,42 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from .constants import stats
+from .utils import crit_rate, get_p2_team
 
-def crit_rate(base_speed):
-    rate = base_speed * 100 / 512
-    return round(rate, 4)
-
-def static_features(battle: dict) -> dict: 
+def static_features(battle: dict, pokedex) -> dict: 
 
     features = {}
 
     # --- Player 1 Team Features ---
     p1_team = battle.get('p1_team_details', [])
-    features['p1_team_diversity'] = len(set(t for p in p1_team for t in p.get('types', []) if t != "notype"))
     if p1_team:
-        #features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
+        features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
         
         # Average stats for p1 team
         for stat in stats:
             features[f'p1_mean_{stat}'] = np.mean([p.get(f'base_{stat}', 0) for p in p1_team])
 
         
-    # --- Player 2 Lead Features ---
+    # --- Player 2 Observed Team Features ---
     p2_lead = battle.get('p2_lead_details')
-    if p2_lead:
-        #features['p2_crit_rate'] = crit_rate(p2_lead.get('base_spe', 0))
+    p2_team = get_p2_team(battle, pokedex)
+    
+    if p2_team:
+        features['p2_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p2_team])
         
-        # Stats for lead pokemon p2
+        # Average stats for observed p2_team
         for stat in stats:
-            features[f'p2_lead_{stat}'] = p2_lead.get(f'base_{stat}', 0)
+            features[f'p2_mean_{stat}'] = np.mean([p.get(f'base_{stat}', 0) for p in p2_team])
+
+        # Team coverage
+        features["p2_team_coverage"] = min(len(p2_team) / 6.0, 1.0)
+
+
+    # --- Average stats differences
+    for stat in stats:
+        p1_mean = features.get(f'p1_mean_{stat}', 0)
+        p2_mean = features.get(f'p2_mean_{stat}', 0)
+        features[f'mean_{stat}_diff'] = p1_mean - p2_mean
 
 
     # --- First turn matchup ---
@@ -39,11 +47,11 @@ def static_features(battle: dict) -> dict:
         p1_pokemon_name = first_turn.get('p1_pokemon_state', {}).get('name')
 
         # Find matching Pokemon in p1_team
-        p1_pokemon = next((p for p in p1_team if p.get('name') == p1_pokemon_name), None)
+        p1_lead = next((p for p in p1_team if p.get('name') == p1_pokemon_name), None)
 
-        if p1_pokemon: 
-            p1_spe = p1_pokemon.get('base_spe', 0)
-            p2_spe = features['p2_lead_spe']
+        if p1_lead: 
+            p1_spe = p1_lead.get('base_spe', 0)
+            p2_spe = p2_lead.get('base_spe', 0)
             features['spe_diff'] = p1_spe - p2_spe
         else: 
             features['spe_diff'] = 0.0
@@ -72,15 +80,16 @@ def extract_status_features(battle):
     features['status_diff'] = p1_score - p2_score
     return features
 
-def first_move_advantage(battle, pokedex):
-    features = {}
-    return features
+def first_move_rate(battle, pokedex):
+    pass
+    
 
 # TODO - Risistemare
 def dynamic_features(battle: dict) -> dict:
 
     features = {
-        'p1_ko_count': 0, 'p2_ko_count': 0, 
+        'p1_bad_status': 0, 'p2_bad_status': 0,
+        'p1_ko_count': 0, 'p2_ko_count': 0
     }
 
     p1_hp_loss = 0.0
@@ -118,12 +127,10 @@ def dynamic_features(battle: dict) -> dict:
 
         # Number of turns with altered status
         if p1_status not in ['nostatus', 'fnt']:
-            key = 'p1_bad_status'
-            features[key] = features.get(key, 0) + 1
+            features['p1_bad_status'] += 1
 
         if p2_status not in ['nostatus', 'fnt']:
-            key = 'p2_bad_status'
-            features[key] = features.get(key, 0) + 1
+            features['p2_bad_status'] += 1
 
         # Number of fainted pokemons
         if p1_status == 'fnt': 
@@ -147,7 +154,7 @@ def create_features(data: list[dict], pokedex) -> pd.DataFrame:
         features = {}
 
         features.update(extract_status_features(battle))
-        features.update(static_features(battle))
+        features.update(static_features(battle, pokedex))
         features.update(dynamic_features(battle))
 
         # We also need the ID and the target variable (if it exists)
