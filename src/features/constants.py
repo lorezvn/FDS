@@ -1,9 +1,10 @@
 stats = ["hp", "spe", "atk", "def", "spd", "spa"]
-# immune = moves that deal 0x to my pokemons
-# weakness = moves that deal 2x to my pokemons
-# resistence = moves that deal 1/2x to my pokemons
 
 types_dict = {
+    # immune = moves that deal 0x to my pokemons
+    # weakness = moves that deal 2x to my pokemons
+    # resistence = moves that deal 1/2x to my pokemons
+    
     "normal": {
         "immune": ["ghost"],
         "weakness": ["fighting"],

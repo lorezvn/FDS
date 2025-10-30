@@ -1,7 +1,6 @@
-from src.data_loader import load_jsonl, display_battle
-from src.features import create_features
+from src.data_loader import load_jsonl, display_battle, create_pokedex
+from src.features import create_features, speed_adv_rate
 from src.model import train_and_evaluate
-from src.utils import create_pokedex
 from src.utils import get_p2_team
 
 def main():
@@ -16,7 +15,9 @@ def main():
 
     print("\nProcessing pokemons...")
     pokedex = create_pokedex(train_data)
-
+    print(pokedex)
+    return
+    
     print("\nProcessing training data...")
     train_df = create_features(train_data, pokedex)
     print("\nProcessing test data...")
