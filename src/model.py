@@ -31,7 +31,7 @@ def get_best_model(X_train, y_train):
 
     # Print the best accuracy score found during grid search
     best_score = grid_logreg.best_score_
-    print(f'\nBest accuracy score: {"{:.2f}".format(best_score)}')
+    print(f'\nBest accuracy score: {"{:.4f}".format(best_score)}')
 
     # Extract the best hyperparameter combination
     best_params = grid_logreg.best_params_

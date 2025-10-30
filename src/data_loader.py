@@ -2,7 +2,7 @@ import json
 import os
 from tqdm import tqdm
 from .features.constants import stats
-from data_types import Pokedex
+from .data_types import Pokedex
 
 def load_jsonl(data_path: str) -> list:
     if not os.path.exists(data_path):

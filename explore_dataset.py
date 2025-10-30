@@ -15,7 +15,7 @@ test_data = load_jsonl(TEST_PATH)
 print(f"Successfully loaded {len(test_data)} battles.\n")
 
 
-def extract_info(dataset, desc="Extracting infos"):
+def extract_info(dataset: list[dict], desc="Extracting infos"):
     set_effects = set()
     set_moves = set()
     set_status = set()
