@@ -4,17 +4,18 @@ from .constants import stats
 def create_pokedex(data):
     pokedex = {}
     for battle in tqdm(data, desc="Creating pokedex"):
-        
         p1_team = battle.get('p1_team_details', [])
         p2_lead = battle.get('p2_lead_details')
-
-        pokemon_list = p1_team + [p2_lead]
+        pokemon_list = p1_team + ([p2_lead] if p2_lead else [])
 
         for pokemon in pokemon_list:
+            if not pokemon:
+                continue
             pokemon_name = pokemon.get('name')
-            if pokemon_name not in pokedex:
+            if pokemon_name and pokemon_name not in pokedex:
                 pokemon_stats = {f'base_{stat}': pokemon.get(f'base_{stat}') for stat in stats}
-                
+                pokemon_types = [t.lower() for t in (pokemon.get('types') or [])]
+                pokemon_stats['types'] = pokemon_types
                 pokedex[pokemon_name] = pokemon_stats
 
     return pokedex
