@@ -22,6 +22,5 @@ def get_p2_team(battle: dict, pokedex: Pokedex):
             seen.add(pokemon_name)
 
     return p2_team
-
         
     
