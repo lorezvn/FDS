@@ -27,7 +27,7 @@ def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
         base_speed = pokedex[name].get('base_spe', 0)
         boosts = state.get('boosts', {})
         stage = boosts.get('spe', 0)
-        status = state.get('status', 'nostatus')
+        status = state.get('status')
 
         # Speed mult
         mult = (2 + stage) / 2 if stage >= 0 else 2 / (2 - stage)
@@ -214,6 +214,8 @@ def status_advantages(battle: dict) -> dict:
 
         for idx, turn in enumerate(battle_timeline):
 
+            t = turn.get('turn') or (idx + 1)
+
             status = turn.get(f'{player}_pokemon_state', {}).get('status')
 
             # Frozen turn
@@ -221,7 +223,7 @@ def status_advantages(battle: dict) -> dict:
 
             # First time paralized
             if status == 'par' and first_par_turn is None:
-                first_par_turn = idx
+                first_par_turn = int(t)
 
         first_par_inv = (1.0 / first_par_turn) if (first_par_turn and first_par_turn > 0) else 0.0
         return frz_turns, first_par_inv
@@ -312,7 +314,7 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
     # --- Player 1 Team Features ---
     p1_team = battle.get('p1_team_details', [])
     if p1_team:
-        #features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
+        features['p1_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p1_team])
         
         # Average stats for p1 team
         for stat in stats:
@@ -324,7 +326,7 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
     p2_team = get_p2_team(battle, pokedex)
     
     if p2_team:
-        #features['p2_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p2_team])
+        features['p2_avg_crit_rate'] = np.mean([crit_rate(p.get('base_spe', 0)) for p in p2_team])
         
         # Average stats for observed p2_team
         for stat in stats:
@@ -335,10 +337,10 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
 
 
     # --- Average stats differences
-    #for stat in stats:
-    #    p1_mean = features.get(f'p1_mean_{stat}', 0)
-    #    p2_mean = features.get(f'p2_mean_{stat}', 0)
-    #    features[f'mean_{stat}_diff'] = p1_mean - p2_mean
+    for stat in stats:
+        p1_mean = features.get(f'p1_mean_{stat}', 0)
+        p2_mean = features.get(f'p2_mean_{stat}', 0)
+        features[f'mean_{stat}_diff'] = p1_mean - p2_mean
 
 
     # --- First turn matchup ---

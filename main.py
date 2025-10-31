@@ -4,8 +4,8 @@ from src.model import train_and_evaluate
 from src.features.utils import get_p2_team
 
 def main():
-    TRAIN_PATH = "Dataset/train.jsonl"
-    TEST_PATH = "Dataset/test.jsonl"
+    TRAIN_PATH = "dataset/train.jsonl"
+    TEST_PATH = "dataset/test.jsonl"
 
     print(f"Loading data from '{TRAIN_PATH}'...")
     train_data = load_jsonl(TRAIN_PATH)
