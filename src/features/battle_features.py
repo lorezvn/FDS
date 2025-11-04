@@ -4,6 +4,49 @@ import numpy as np
 from .constants import stats
 from .utils import crit_rate, get_p2_team
 from ..data_types import Pokedex
+from .constants import types_dict
+
+def _get_type_matchup_score(p1_types: list, p2_types: list, types_dict: dict) -> float:
+    """
+    Calcola un punteggio di vantaggio di tipo per P1 vs P2.
+    +1 per ogni interazione superefficace di P1 vs P2
+    -1 per ogni interazione superefficace di P2 vs P1
+    +1 per ogni immunità di P1 (P2 non può colpirlo)
+    -1 per ogni immunità di P2 (P1 non può colpirlo)
+    """
+    score = 0
+    if not p1_types or not p2_types:
+        return 0
+
+    # Vantaggi offensivi di P1 (P1 colpisce P2 superefficace)
+    for p1_type in p1_types:
+        if p1_type not in types_dict: continue
+        for p2_type in p2_types:
+            if p2_type in types_dict[p1_type].get('weakness', []):
+                score += 1 
+    
+    # Vantaggi offensivi di P2 (P2 colpisce P1 superefficace)
+    for p2_type in p2_types:
+        if p2_type not in types_dict: continue
+        for p1_type in p1_types:
+            if p1_type in types_dict[p2_type].get('weakness', []):
+                score -= 1 
+
+    # Immunità di P1 (P2 non può colpire P1)
+    for p2_type in p2_types:
+        if p2_type not in types_dict: continue
+        for p1_type in p1_types:
+            if p1_type in types_dict[p2_type].get('immune', []):
+                score += 1 
+    
+    # Immunità di P2 (P1 non può colpire P2)
+    for p1_type in p1_types:
+        if p1_type not in types_dict: continue
+        for p2_type in p2_types:
+            if p2_type in types_dict[p1_type].get('immune', []):
+                score -= 1 
+    
+    return score
 
 def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
     """
@@ -85,7 +128,7 @@ def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
     rate = round(adv / v_turns, 3) if v_turns > 0 else 0.0
 
     features = {
-        'p1_speed_adv_turns': adv, 
+        #'p1_speed_adv_turns': adv, 
         'p1_speed_adv_rate': rate
     }
 
@@ -359,6 +402,21 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
         else: 
             features['spe_diff'] = 0.0
 
+    # Matchup type advantage
+    if p1_team and p2_team:
+        team_adv_score = 0
+        total_matchups = 0
+        for p1_pokemon in p1_team:
+            for p2_pokemon in p2_team:
+                p1_types = p1_pokemon.get('types', [])
+                p2_types = p2_pokemon.get('types', [])
+                team_adv_score += _get_type_matchup_score(p1_types, p2_types, types_dict)
+                total_matchups += 1
+        
+        features['team_type_adv_mean'] = round(team_adv_score / total_matchups, 3) if total_matchups > 0 else 0.0
+    else:
+        features['team_type_adv_mean'] = 0.0
+        
     return features
     
 
@@ -423,18 +481,17 @@ def dynamic_features(battle: dict) -> dict:
 def create_features(data: list[dict], pokedex: Pokedex) -> pd.DataFrame:
     feature_list = []
     for battle in tqdm(data, desc="Extracting features"):
-        #if battle.get('battle_id') == 4877: continue
+        if battle.get('battle_id') == 4877: continue
         
         features = {}
 
         features.update(speed_advantage(battle, pokedex))
-        features.update(switch_dynamics_features(battle)) # <-- NEW
+        features.update(switch_dynamics_features(battle)) # <-- DA RIVEDERE
         features.update(status_advantages(battle)) 
         features.update(offensive_rate(battle))
         features.update(extract_status_features(battle)) 
         features.update(static_features(battle, pokedex))
         features.update(dynamic_features(battle))
-
 
         # We also need the ID and the target variable (if it exists)
         features['battle_id'] = battle.get('battle_id')
