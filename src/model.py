@@ -212,13 +212,14 @@ def feature_correlations(model, X_train, top_n=10):
     output_dir = "outputs/plots"
 
     # Top features
-    coefs = model.named_steps['logisticregression'].coef_[0]
+    rf = model.named_estimators_['rf']
+    importances = rf.feature_importances_
     features = X_train.columns
-    top_idx = np.argsort(np.abs(coefs))[::-1][:top_n]
+    top_idx = np.argsort(importances)[::-1][:top_n]
     top_features = features[top_idx]
 
     print(f"\nTop {top_n} features by absolute weight:")
-    for i, (f, c) in enumerate(zip(top_features, coefs[top_idx])):
+    for i, (f, c) in enumerate(zip(top_features, importances[top_idx])):
         print(f"{i+1}) {f}: {c:.3f}")
 
     # Heatmap
@@ -237,11 +238,7 @@ def feature_correlations(model, X_train, top_n=10):
     print(f"\n'{timestamp}_top_{top_n}.png' file created successfully!")
 
 
-def generate_submission(model, X_train, y_train, X_test, test_df):
-
-    # Train model
-    print("\nTraining model...")
-    model.fit(X_train, y_train)
+def generate_submission(model, X_test, test_df):
 
     # Make predictions on the test data
     print("\nGenerating predictions on the test set...")
@@ -271,6 +268,10 @@ def train_and_evaluate(train_df, test_df):
 
     cross_validate(model, X_train, y_train)
 
-    #feature_correlations(model, X_train, top_n=15)
+    # Train model
+    print("\nTraining model...")
+    model.fit(X_train, y_train)
 
-    generate_submission(model, X_train, y_train, X_test, test_df)
+    feature_correlations(model, X_train, top_n=15)
+
+    generate_submission(model, X_test, test_df)
