@@ -481,7 +481,7 @@ def dynamic_features(battle: dict) -> dict:
 def create_features(data: list[dict], pokedex: Pokedex) -> pd.DataFrame:
     feature_list = []
     for battle in tqdm(data, desc="Extracting features"):
-        if battle.get('battle_id') == 4877: continue
+        #if battle.get('battle_id') == 4877: continue
         
         features = {}
 
