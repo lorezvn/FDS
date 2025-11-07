@@ -94,5 +94,5 @@ class BattlePredictor:
 
 
 if __name__ == '__main__':
-    predictor = BattlePredictor(n_features=10)
+    predictor = BattlePredictor(n_features=10, tuning=True)
     predictor.run()

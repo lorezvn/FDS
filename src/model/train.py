@@ -26,7 +26,7 @@ def cross_validate(model, X_train, y_train):
     print("\nStacked model evaluation:")
     score = cross_val_score(model, X_train, y_train, cv=kf, scoring="accuracy", n_jobs=config.N_JOBS)
     print(f"  > Fold scores: {score}")
-    print(f"  > Cross-val mean: {score.mean():.4f} +/- {score.std():.4f}")
+    print(f"  > Cross-val mean: {score.mean():.4f} (+/- {score.std():.4f})")
 
 def feature_correlations(model, X_train, top_n=10):
 
