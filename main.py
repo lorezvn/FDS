@@ -103,5 +103,5 @@ if __name__ == '__main__':
     predictor = BattlePredictor(
         train_path=config.TRAIN_PATH,
         test_path=config.TEST_PATH,
-        tuning=True)
+        tuning=False)
     predictor.run()

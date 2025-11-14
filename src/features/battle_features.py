@@ -6,46 +6,137 @@ from .utils import crit_rate, get_p2_team
 from ..data_types import Pokedex
 from .constants import types_dict
 
-def _get_type_matchup_score(p1_types: list, p2_types: list, types_dict: dict) -> float:
+def analyze_defense(pokemon: dict) -> dict:
     """
-    Calcola un punteggio di vantaggio di tipo per P1 vs P2.
-    +1 per ogni interazione superefficace di P1 vs P2
-    -1 per ogni interazione superefficace di P2 vs P1
-    +1 per ogni immunità di P1 (P2 non può colpirlo)
-    -1 per ogni immunità di P2 (P1 non può colpirlo)
+    Compute the defensive multipliers of a Pokémon against all attacking types.
     """
-    score = 0
+    # Filter out "notype"
+    def_types = [t for t in pokemon.get("types", []) if t != "notype"]
+
+    multipliers = {}
+
+    # Compute the multiplier for each attacking type
+    for atk_type in types_dict:
+
+        # Immunity check
+        if any(atk_type in types_dict[def_t]["immune"] for def_t in def_types):
+            multiplier = 0.0
+        else:
+            multiplier = 1.0
+            for def_t in def_types:
+                if atk_type in types_dict[def_t]["weakness"]:
+                    multiplier *= 2.0
+                if atk_type in types_dict[def_t]["resistence"]:
+                    multiplier *= 0.5
+
+        multipliers[atk_type] = multiplier
+
+    
+    mult_list = {"0x": [], "1/4x": [], "1/2x": [], "2x": [], "4x": []}
+    for atk, m in multipliers.items():
+        if m == 0.0: mult_list["0x"].append(atk)
+        elif m == 0.25: mult_list["1/4x"].append(atk)
+        elif m == 0.5: mult_list["1/2x"].append(atk)
+        elif m == 2.0: mult_list["2x"].append(atk)
+        elif m == 4.0: mult_list["4x"].append(atk)
+
+    return mult_list
+
+def moves(battle):
+    p1_team = battle.get('p1_team_details', [])
+    battle_timeline = battle.get('battle_timeline', [])
+
+    p1_def = {p["name"]: analyze_defense(p) for p in p1_team}
+
+    nve_hits, se_hits = 0, 0
+    prev_hp = {}
+
+    for turn in battle_timeline:
+        p1_state = turn.get('p1_pokemon_state', {})
+        p2_move = turn.get('p2_move_details', {})
+        if not p2_move:
+            continue
+        p1_name = p1_state.get('name')
+        p1_hp = p1_state.get('hp_pct')
+        move_type = p2_move.get('type', "")
+        base_power = p2_move.get('base_power', 0)
+        
+        if not p1_name or not move_type or base_power <= 0:
+            continue
+
+        # Previous hp
+        prev = prev_hp.get(p1_name)
+
+        hit = (isinstance(p1_hp, (int, float)) and isinstance(prev, (int, float)) and p1_hp < prev)
+        if hit:
+            resistence = p1_def[p1_name]['1/2x'] + p1_def[p1_name]['1/4x']
+            weakness = p1_def[p1_name]['2x'] + p1_def[p1_name]['4x']
+            if move_type.lower() in weakness:
+                se_hits += 1
+            elif move_type.lower() in resistence:
+                nve_hits += 1
+        
+        prev_hp[p1_name] = p1_hp
+    return {
+        "p1_nve_hits": nve_hits,
+        "p1_se_hits": se_hits
+    }
+
+def get_type_matchup_score(p1_types: list, p2_types: list) -> float:
+    """
+    Computes a type advantage score for P1 over P2.
+
+    When P1 attacks P2:
+      - -3 if P2 is immune to the attack
+      - +2 if P2 is weak (2x or 4x)
+      - -1 if P2 resists (0.5x or 0.25x)
+
+    When P2 attacks P1:
+      - +3 if P1 is immune to the attack
+      - -2 if P1 is weak (2x or 4x)
+      - +1 if P1 resists (0.5x or 0.25x)
+    """
     if not p1_types or not p2_types:
-        return 0
+        return 0.0
 
-    # Vantaggi offensivi di P1 (P1 colpisce P2 superefficace)
-    for p1_type in p1_types:
-        if p1_type not in types_dict: continue
-        for p2_type in p2_types:
-            if p2_type in types_dict[p1_type].get('weakness', []):
-                score += 1 
-    
-    # Vantaggi offensivi di P2 (P2 colpisce P1 superefficace)
-    for p2_type in p2_types:
-        if p2_type not in types_dict: continue
-        for p1_type in p1_types:
-            if p1_type in types_dict[p2_type].get('weakness', []):
-                score -= 1 
+    score = 0.0
 
-    # Immunità di P1 (P2 non può colpire P1)
-    for p2_type in p2_types:
-        if p2_type not in types_dict: continue
-        for p1_type in p1_types:
-            if p1_type in types_dict[p2_type].get('immune', []):
-                score += 1 
-    
-    # Immunità di P2 (P1 non può colpire P2)
-    for p1_type in p1_types:
-        if p1_type not in types_dict: continue
-        for p2_type in p2_types:
-            if p2_type in types_dict[p1_type].get('immune', []):
-                score -= 1 
-    
+    # P1 attacks P2
+    for atk in p1_types:
+        if atk not in types_dict:
+            continue
+        for d in p2_types:
+            if d not in types_dict:
+                continue
+
+            # P2 is immune
+            if atk in types_dict[d]["immune"]:
+                score -= 3
+            # P2 is weak
+            elif atk in types_dict[d]["weakness"]:
+                score += 2
+            # P2 resists
+            elif atk in types_dict[d]["resistence"]:
+                score -= 1
+
+    # P2 attacks P1
+    for atk in p2_types:
+        if atk not in types_dict:
+            continue
+        for d in p1_types:
+            if d not in types_dict:
+                continue
+            
+            # P1 is immune
+            if atk in types_dict[d]["immune"]:
+                score += 3
+            # P1 is weak
+            elif atk in types_dict[d]["weakness"]:
+                score -= 2
+            # P1 resists
+            elif atk in types_dict[d]["resistence"]:
+                score += 1
+
     return score
 
 def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
@@ -137,12 +228,11 @@ def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
 
 def switch_dynamics_features(battle: dict) -> dict:
     """
-    Conta e classifica i cambi (switch) di Pokémon per Player 1 e Player 2.
+    Analyze switch (substitution) behavior for P1 and P2.
     
-    Classifica ogni cambio come:
-      - voluntary: il giocatore ha scelto volontariamente di cambiare Pokémon
-                   (nessuna mossa fatta, pX_move_details = None)
-      - forced_faint: il cambio è forzato perché il Pokémon precedente è andato KO ('fnt')
+    A switch can be categorized as:
+      - voluntary: the player switched without using a move
+      - forced_faint: the player's active Pokémon fainted (status 'fnt')
     
     Ritorna un dizionario con i conteggi totali per ciascuna categoria.
     """
@@ -155,7 +245,6 @@ def switch_dynamics_features(battle: dict) -> dict:
     if len(tl) < 2:
         return {
             'p1_switch_count': 0, 'p2_switch_count': 0,
-            'switch_diff': 0,
             'p1_voluntary_switches': 0, 'p2_voluntary_switches': 0,
             'p1_forced_faint_switches': 0, 'p2_forced_faint_switches': 0,
             'p1_switch_rate': 0.0, 'p2_switch_rate': 0.0,
@@ -327,7 +416,6 @@ def offensive_rate(battle: dict) -> dict:
     return features
 
 
-# status info with weights 
 def extract_status_features(battle: dict) -> dict:
     status_weights = {"slp": 3, "frz": 4, "par": 2,"tox": 1.5, "psn": 1,"brn": 0.5}
 
@@ -402,7 +490,7 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
         else: 
             features['spe_diff'] = 0.0
 
-    # Matchup type advantage
+    # --- Matchup type advantage ---
     if p1_team and p2_team:
         team_adv_score = 0
         total_matchups = 0
@@ -410,17 +498,13 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
             for p2_pokemon in p2_team:
                 p1_types = p1_pokemon.get('types', [])
                 p2_types = p2_pokemon.get('types', [])
-                team_adv_score += _get_type_matchup_score(p1_types, p2_types, types_dict)
+                team_adv_score += get_type_matchup_score(p1_types, p2_types)
                 total_matchups += 1
         
         features['team_type_adv_mean'] = round(team_adv_score / total_matchups, 3) if total_matchups > 0 else 0.0
-    else:
-        features['team_type_adv_mean'] = 0.0
         
     return features
     
-
-# TODO - Risistemare
 def dynamic_features(battle: dict) -> dict:
 
     features = {
@@ -486,12 +570,13 @@ def create_features(data: list[dict], pokedex: Pokedex) -> pd.DataFrame:
         features = {}
 
         features.update(speed_advantage(battle, pokedex))
-        features.update(switch_dynamics_features(battle)) # <-- DA RIVEDERE
+        features.update(switch_dynamics_features(battle))
         features.update(status_advantages(battle)) 
         features.update(offensive_rate(battle))
         features.update(extract_status_features(battle)) 
         features.update(static_features(battle, pokedex))
         features.update(dynamic_features(battle))
+        features.update(moves(battle))
 
         # We also need the ID and the target variable (if it exists)
         features['battle_id'] = battle.get('battle_id')

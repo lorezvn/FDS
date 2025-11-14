@@ -6,3 +6,5 @@ __pycache__/
 dataset/
 
 outputs/
+
+submission.csv
