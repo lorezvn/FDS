@@ -70,53 +70,82 @@ def get_tuned_params(name, estimator, X_train, y_train):
     return best_params
 
 
-def get_final_model(X_train, y_train, tuning=False):
-    estimators = [
-        ('lr', make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=1000, random_state=config.RANDOM_STATE))),
-        ('rf', RandomForestClassifier(n_estimators=400, max_features='sqrt', max_depth=15, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS)),
-        ('lgbm', LGBMClassifier(num_leaves=20, n_estimators=200, max_depth=7, learning_rate=0.05, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS, verbose=-1)),
-        #('xgb', XGBClassifier(eval_metric='logloss', random_state=config.RANDOM_STATE)),
-        ('svc', make_pipeline(StandardScaler(), SVC(gamma='scale', C=1, probability=False, random_state=config.RANDOM_STATE)))
-    ]
+def get_final_model(model_name, X_train, y_train, tuning=False):
 
-    if tuning:
+    base_models = {
+        "LogisticRegression": make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=1, solver='lbfgs', max_iter=1000,
+                               random_state=config.RANDOM_STATE)
+        ),
+        "RandomForest": RandomForestClassifier(
+            n_estimators=400, max_features='sqrt', max_depth=15,
+            random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS
+        ),
+        "LGBM": LGBMClassifier(
+            num_leaves=20, n_estimators=200, max_depth=7,
+            learning_rate=0.05, random_state=config.RANDOM_STATE,
+            n_jobs=config.N_JOBS, verbose=-1
+        ),
+        "SVC": make_pipeline(
+            StandardScaler(),
+            SVC(gamma='scale', C=1, probability=False,
+                random_state=config.RANDOM_STATE)
+        ),
+    }
+
+    # --- If requesting a single model ---
+    if model_name in base_models:
+        model = base_models[model_name]
+        return model
+
+    if model_name == "StackingClassifier":
         
-        print("\n--- Tuning ---")
-        tuned_estimators = []
+        estimators = [
+            ('lr', base_models["LogisticRegression"]),
+            ('rf', base_models["RandomForest"]),
+            ('lgbm', base_models["LGBM"]),
+            ('svc', base_models["SVC"])
+        ]
 
-        for name, estimator in estimators:
-
-            best_params = get_tuned_params(name, estimator, X_train, y_train)
+        if tuning:
             
-            if name == 'lr':
-                best_params.update({'max_iter': 1000, 'solver': 'lbfgs', 'random_state': config.RANDOM_STATE})
-                tuned_estimators.append(('lr', make_pipeline(StandardScaler(), LogisticRegression(**best_params))))
-            elif name == 'rf':
-                best_params.update({'random_state': config.RANDOM_STATE, 'n_jobs': config.N_JOBS})
-                tuned_estimators.append(('rf', RandomForestClassifier(**best_params)))
-            elif name == 'lgbm':
-                best_params.update({'random_state': config.RANDOM_STATE, 'n_jobs': config.N_JOBS, 'verbose': -1})
-                tuned_estimators.append(('lgbm', LGBMClassifier(**best_params)))
-            elif name == 'xgb':
-                best_params.update({'random_state': config.RANDOM_STATE, 'eval_metric': 'logloss'})
-                tuned_estimators.append(('xgb', XGBClassifier(**best_params)))
-            elif name == 'svc':
-                best_params.update({'probability': False, 'random_state': config.RANDOM_STATE})
-                tuned_estimators.append(('svc', make_pipeline(StandardScaler(), SVC(**best_params))))
-        
-        estimators = tuned_estimators
+            print("\n--- Tuning ---")
+            tuned_estimators = []
 
-    final_estimator = make_pipeline(
-        StandardScaler(),
-        LogisticRegression(C=10, penalty='l2', solver='lbfgs', max_iter=1000, random_state=config.RANDOM_STATE)
-    )
+            for name, estimator in estimators:
 
-    stacking_model = StackingClassifier(
-        estimators=estimators,
-        final_estimator=final_estimator,
-        cv=config.CV_FOLDS,  
-        n_jobs=config.N_JOBS, 
-        passthrough=True
-    )
+                best_params = get_tuned_params(name, estimator, X_train, y_train)
+                
+                if name == 'lr':
+                    best_params.update({'max_iter': 1000, 'solver': 'lbfgs', 'random_state': config.RANDOM_STATE})
+                    tuned_estimators.append(('lr', make_pipeline(StandardScaler(), LogisticRegression(**best_params))))
+                elif name == 'rf':
+                    best_params.update({'random_state': config.RANDOM_STATE, 'n_jobs': config.N_JOBS})
+                    tuned_estimators.append(('rf', RandomForestClassifier(**best_params)))
+                elif name == 'lgbm':
+                    best_params.update({'random_state': config.RANDOM_STATE, 'n_jobs': config.N_JOBS, 'verbose': -1})
+                    tuned_estimators.append(('lgbm', LGBMClassifier(**best_params)))
+                elif name == 'xgb':
+                    best_params.update({'random_state': config.RANDOM_STATE, 'eval_metric': 'logloss'})
+                    tuned_estimators.append(('xgb', XGBClassifier(**best_params)))
+                elif name == 'svc':
+                    best_params.update({'probability': False, 'random_state': config.RANDOM_STATE})
+                    tuned_estimators.append(('svc', make_pipeline(StandardScaler(), SVC(**best_params))))
+            
+            estimators = tuned_estimators
 
-    return stacking_model
+        final_estimator = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=10, penalty='l2', solver='lbfgs', max_iter=1000, random_state=config.RANDOM_STATE)
+        )
+
+        stacking_model = StackingClassifier(
+            estimators=estimators,
+            final_estimator=final_estimator,
+            cv=config.CV_FOLDS,  
+            n_jobs=config.N_JOBS, 
+            passthrough=True
+        )
+
+        return stacking_model

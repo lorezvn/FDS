@@ -26,6 +26,7 @@ class BattlePredictor:
     Manages the entire loading, processing, and training pipeline.
 
     Attributes:
+        model_name (str): Choosen model to train.
         train_path (str): Path of the training file.
         test_path(str): Path of the testing file.
         pokedex (Pokedex): The Pokedex dictionary created by `process_pokedex`.
@@ -34,7 +35,8 @@ class BattlePredictor:
         tuning (bool, optional): Flag to enable model hyperparameter tuning. Defaults to False.
         display (bool, optional): Flag to enable printing of previews (e.g., battles). Defaults to False.
     """
-    def __init__(self, train_path: str, test_path: str, tuning: bool = False, display: bool = False):
+    def __init__(self, model_name: str, train_path: str, test_path: str, tuning: bool = False, display: bool = False):
+        self.model_name = model_name
         self.train_path = train_path
         self.test_path = test_path
         self.pokedex = None
@@ -92,6 +94,7 @@ class BattlePredictor:
         print("\n=======================================================")
         print("TRAINING & EVALUATION", end=" ")
         train_and_evaluate(
+            self.model_name,
             self.train_df, 
             self.test_df, 
             tuning=self.tuning
@@ -101,6 +104,7 @@ class BattlePredictor:
 
 if __name__ == '__main__':
     predictor = BattlePredictor(
+        model_name="StackingClassifier",
         train_path=config.TRAIN_PATH,
         test_path=config.TEST_PATH,
         tuning=False)
