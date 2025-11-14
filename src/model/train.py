@@ -40,7 +40,7 @@ def generate_submission(model, X_test, test_df):
     print("'submission.csv' file created successfully!")
 
 
-def train_and_evaluate(train_df, test_df, top_n, tuning):
+def train_and_evaluate(train_df, test_df, tuning):
 
     # Only allowed features 
     features = [col for col in train_df.columns if col not in ['battle_id', 'player_won'] + config.FEATURES_TO_DROP]
