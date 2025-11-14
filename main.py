@@ -26,6 +26,8 @@ class BattlePredictor:
     Manages the entire loading, processing, and training pipeline.
 
     Attributes:
+        train_path (str): Path of the training file.
+        test_path(str): Path of the testing file.
         pokedex (Pokedex): The Pokedex dictionary created by `process_pokedex`.
         train_df (pd.DataFrame): Training DataFrame with features.
         test_df (pd.DataFrame): Test DataFrame with features.
@@ -33,21 +35,23 @@ class BattlePredictor:
         tuning (bool, optional): Flag to enable model hyperparameter tuning. Defaults to False.
         display (bool, optional): Flag to enable printing of previews (e.g., battles). Defaults to False.
     """
-    def __init__(self, n_features: int = 15, tuning: bool = False, display: bool = False):
+    def __init__(self, train_path: str, test_path: str, n_features: int = 15, tuning: bool = False, display: bool = False):
+        self.train_path = train_path
+        self.test_path = test_path
         self.pokedex = None
         self.train_df = None
         self.test_df = None
-        self.display = display
-        self.tuning = tuning
         self.n_features = n_features
+        self.tuning = tuning
+        self.display = display
     
     def load_raw_data(self) -> tuple[list[dict], list[dict]]: 
-        print(f"\nLoading training data from '{config.TRAIN_PATH}'...")
-        train_data = load_jsonl(config.TRAIN_PATH)
+        print(f"\nLoading training data from '{self.train_path}'...")
+        train_data = load_jsonl(self.train_path)
         print(f"Successfully loaded {len(train_data)} battles.")
 
-        print(f"\nLoading test data from '{config.TEST_PATH}'...")
-        test_data = load_jsonl(config.TEST_PATH)
+        print(f"\nLoading test data from '{self.test_path}'...")
+        test_data = load_jsonl(self.test_path)
         print(f"Successfully loaded {len(test_data)} battles.")
 
         if self.display:
@@ -89,10 +93,19 @@ class BattlePredictor:
         # Training and evaluation
         print("\n=======================================================")
         print("TRAINING & EVALUATION", end=" ")
-        train_and_evaluate(self.train_df, self.test_df, top_n=self.n_features, tuning=self.tuning)
+        train_and_evaluate(
+            self.train_df, 
+            self.test_df, 
+            top_n=self.n_features, 
+            tuning=self.tuning
+        )
         print("=======================================================")
 
 
 if __name__ == '__main__':
-    predictor = BattlePredictor(n_features=10, tuning=True)
+    predictor = BattlePredictor(
+        train_path=config.TRAIN_PATH,
+        test_path=config.TEST_PATH,
+        n_features=20, 
+        tuning=True)
     predictor.run()

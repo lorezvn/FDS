@@ -8,7 +8,5 @@ SUBMISSION_PATH = "outputs/submission.csv"
 PLOT_PATH = "outputs/plots/"
 
 FEATURES_TO_DROP = [
-    # 'p1_hp_loss',
-    # 'p1_forced_faint_switches'
-    # other features to drop
+    # features to drop
 ]
