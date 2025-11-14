@@ -31,17 +31,15 @@ class BattlePredictor:
         pokedex (Pokedex): The Pokedex dictionary created by `process_pokedex`.
         train_df (pd.DataFrame): Training DataFrame with features.
         test_df (pd.DataFrame): Test DataFrame with features.
-        n_features (int, optional): Number of top features to show in the analysis. Defaults to 15.
         tuning (bool, optional): Flag to enable model hyperparameter tuning. Defaults to False.
         display (bool, optional): Flag to enable printing of previews (e.g., battles). Defaults to False.
     """
-    def __init__(self, train_path: str, test_path: str, n_features: int = 15, tuning: bool = False, display: bool = False):
+    def __init__(self, train_path: str, test_path: str, tuning: bool = False, display: bool = False):
         self.train_path = train_path
         self.test_path = test_path
         self.pokedex = None
         self.train_df = None
         self.test_df = None
-        self.n_features = n_features
         self.tuning = tuning
         self.display = display
     
@@ -96,7 +94,6 @@ class BattlePredictor:
         train_and_evaluate(
             self.train_df, 
             self.test_df, 
-            top_n=self.n_features, 
             tuning=self.tuning
         )
         print("=======================================================")
@@ -106,6 +103,5 @@ if __name__ == '__main__':
     predictor = BattlePredictor(
         train_path=config.TRAIN_PATH,
         test_path=config.TEST_PATH,
-        n_features=20, 
         tuning=True)
     predictor.run()
