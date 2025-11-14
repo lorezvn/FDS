@@ -2,18 +2,18 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from .constants import stats
-from .utils import crit_rate, get_p2_team, get_type_matchup_score, analyze_defense
-from ..data_types import Pokedex
+from .utils import *
+from ..data_types import *
 
 def moves(battle: dict) -> dict:
     """
-    Counts how many times Player 1's Pokémon were hit by 
+    Counts how many times P1's pokemons were hit by 
     super-effective or not-very-effective moves.
 
-    For each turn, if Player 2's move causes Player 1's active Pokémon
+    For each turn, if P2's move causes P1's active pokemon
     to lose HP, the move is categorized as:
-      - Super effective (SE)   → move type is in 2x or 4x weaknesses.
-      - Not very effective (NVE) → move type is in 1/2x or 1/4x resistances.
+      - Super effective (SE) -> move type is in 2x or 4x weaknesses.
+      - Not very effective (NVE) -> move type is in 1/2x or 1/4x resistances.
 
     Returned features:
       - p1_nve_hits: Number of hits where P1 was struck by a resisted move.
@@ -75,14 +75,15 @@ def moves(battle: dict) -> dict:
         "p1_se_hits": se_hits
     }
 
+
 def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
     """
-    Computes the rate at which Player 1 holds a speed advantage over Player 2 
+    Computes the rate at which P1 holds a speed advantage over P2 
     across all valid turns.
 
     The "speed advantage" is defined per turn as:
-      - P1 Pokémon moves first (either due to higher move priority or higher effective speed).
-      - If both Pokémon have equal Speed, the advantage is shared (0.5).
+      - P1 pokemon moves first (either due to higher move priority or higher effective speed).
+      - If both pokemon have equal speed, the advantage is shared (0.5).
 
     Returned features:
       - p1_speed_adv_turns: Number of turns where P1 acted before or at the same time as P2.
@@ -164,13 +165,13 @@ def speed_advantage(battle: dict, pokedex: Pokedex) -> dict:
 
 def switch_dynamics_features(battle: dict) -> dict:
     """
-    Analyzes switching (substitution) behavior for Player 1 (P1) and Player 2 (P2).
+    Analyzes switching (substitution) behavior for P1 and P2.
 
-    A switch is detected whenever the active Pokémon's name changes between
+    A switch is detected whenever the active pokemon's name changes between
     consecutive turns. Each switch is categorized as:
       - voluntary: the player switched without selecting a move that turn
                    (move_details is None)
-      - forced_faint: the previous active Pokémon had status 'fnt' (fainted)
+      - forced_faint: the previous active pokemon had status 'fnt' (fainted)
                       at the time of the switch
 
     Returned features:
@@ -257,7 +258,6 @@ def switch_dynamics_features(battle: dict) -> dict:
         'p1_forced_faint_switches': p1_fnt,
         'p2_forced_faint_switches': p2_fnt,
     }
-
 
 
 def status_advantages(battle: dict) -> dict:
@@ -359,15 +359,7 @@ def extract_status_features(battle: dict) -> dict:
     Computes a status-based score for each player and returns the difference 
     (P1_score - P2_score).
 
-    Each non-volatile status condition contributes a weighted penalty:
-        - slp (sleep):        3
-        - frz (freeze):       4
-        - par (paralysis):    2
-        - tox (bad poison):   1.5
-        - psn (poison):       1
-        - brn (burn):         0.5
-
-    For every turn, the active Pokémon's status contributes to its player's 
+    For every turn, the active pokemon's status contributes to its player's 
     cumulative score. A higher score means the player suffered more from 
     status conditions across the battle.
 
@@ -407,7 +399,7 @@ def extract_status_features(battle: dict) -> dict:
 
 def static_features(battle: dict, pokedex: Pokedex) -> dict:
     """
-    Computes static, team-level features for both Player 1 (P1) and Player 2 (P2).
+    Computes static, team-level features for both P1 and P2.
     These features do not depend on turn-by-turn battle events, but instead on the 
     team compositions as inferred from the battle data.
 
@@ -415,8 +407,8 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
         - Average critical-hit rate per team
         - Average base stats (HP, Atk, Def, Spe, etc.) for P1 and P2
         - Differences between the teams' average stats
-        - First-turn Speed comparison between the two leading Pokémon
-        - Average type-advantage score between every P1-P2 Pokémon pair
+        - First-turn speed comparison between the two leading pokemon
+        - Average type-advantage score between every P1-P2 pokemon pair
         - Estimated P2 team coverage (how much of its team has been revealed)
 
     Returned features include:
@@ -506,34 +498,13 @@ def static_features(battle: dict, pokedex: Pokedex) -> dict:
     return features
 
     
-def dynamic_features(battle: dict) -> dict:
+def damage_taken(battle: dict) -> dict:
     """
-    Computes dynamic, time-dependent features from the battle timeline.
-
-    For each turn, the function tracks:
-      - HP loss accumulated over the whole battle for P1 and P2
-      - Number of turns in which each player had a non-neutral status
-      - Number of times a Pokémon fainted for each player
-
-    Assumptions:
-      - 'hp_pct' is the current HP fraction in [0, 1] for the active Pokémon.
-      - 'status' can be:
-            'nostatus' for healthy,
-            'fnt' for fainted,
-            or any other non-volatile status (paralysis, burn, etc.).
+    Computes the total HP loss for each player throughout the battle.
 
     Returned features:
       - p1_hp_loss, p2_hp_loss: total HP percentage points lost (0-100 scale)
-      - p1_bad_status, p2_bad_status: number of turns with a non-neutral status
-      - p1_ko_count, p2_ko_count: number of faint events observed
     """
-
-    features = {
-        'p1_bad_status': 0,
-        'p2_bad_status': 0,
-        'p1_ko_count': 0,
-        'p2_ko_count': 0
-    }
 
     p1_hp_loss = 0.0
     p2_hp_loss = 0.0
@@ -545,10 +516,6 @@ def dynamic_features(battle: dict) -> dict:
     for turn in battle_timeline:
         p1_pokemon_state = turn.get('p1_pokemon_state', {}) or {}
         p2_pokemon_state = turn.get('p2_pokemon_state', {}) or {}
-
-        # Current status (default to 'nostatus' if missing)
-        p1_status = p1_pokemon_state.get('status') or 'nostatus'
-        p2_status = p2_pokemon_state.get('status') or 'nostatus'
 
         # Current HP percentage (default to full HP)
         p1_hp = p1_pokemon_state.get('hp_pct', 1.0)
@@ -568,37 +535,48 @@ def dynamic_features(battle: dict) -> dict:
         prev_p1_hp = p1_hp
         prev_p2_hp = p2_hp
 
-        # --- Status turns counting (exclude neutral and faint) ---
-        if p1_status not in ['nostatus', 'fnt']:
-            features['p1_bad_status'] += 1
-
-        if p2_status not in ['nostatus', 'fnt']:
-            features['p2_bad_status'] += 1
-
-        # --- Faint events counting ---
-        if p1_status == 'fnt':
-            features['p1_ko_count'] += 1
-
-        if p2_status == 'fnt':
-            features['p2_ko_count'] += 1
-
     # Convert accumulated HP loss from [0, 1] scale to percentage points
-    features['p1_hp_loss'] = round(p1_hp_loss * 100, 2)
-    features['p2_hp_loss'] = round(p2_hp_loss * 100, 2)
+    features = {
+        'p1_hp_loss': round(p1_hp_loss * 100, 2),
+        'p2_hp_loss': round(p2_hp_loss * 100, 2)
+    }
 
     return features
 
-    
 
+def get_survivor_status_count(team: dict) -> int:
+    """
+    Counts how many pokemons are still alive and currently affected by a non-neutral status.
+    A pokemon is counted if its status is neither 'fnt' nor 'nostatus'
+    """
+    statuses = 0
+    for pokemon in team.values():
+        if pokemon.get("status", "nostatus") not in ["fnt", "nostatus"]:
+            statuses += 1
+    return statuses
+
+
+def get_mean_survivor_hp(team: dict) -> float:
+    """
+    Computes the mean HP of left alive pokemons
+    """
+    if not team:
+        return 0.0
+    
+    total_hp = sum(p.get('hp_pct', 1.0) for p in team.values())
+    return total_hp / len(team)
+
+    
 def create_features(data: list[dict], pokedex: Pokedex) -> pd.DataFrame:
     """
     Extracts a unified feature set for each battle in the dataset.
     """
 
-    feature_list: list[dict] = []
+    feature_list = []
 
     for battle in tqdm(data, desc="Extracting features"):
-        features: dict = {}
+        
+        features = {}
 
         # Per-battle feature blocks
         features.update(speed_advantage(battle, pokedex))
@@ -607,10 +585,32 @@ def create_features(data: list[dict], pokedex: Pokedex) -> pd.DataFrame:
         features.update(offensive_rate(battle))
         features.update(extract_status_features(battle))
         features.update(static_features(battle, pokedex))
-        features.update(dynamic_features(battle))
+        features.update(damage_taken(battle))
         features.update(moves(battle))
 
-        # Attach identifiers and target variable (if available)
+        # Final state features
+        p1_initial_team = {}
+        p1_initial_team_list = battle.get('p1_team_details', [])
+        for p in p1_initial_team_list:
+            if p: p1_initial_team[p['name']] = p.copy()
+        
+        p2_initial_team = {}
+        p2_lead = battle.get('p2_lead_details', {}) or {}
+        if p2_lead.get('name'): 
+            p2_initial_team[p2_lead.get('name')] = p2_lead.copy()
+ 
+        p1_team_final, p2_team_final, p1_fnt, p2_fnt = get_final_team_states(battle, p1_initial_team, p2_initial_team)
+        
+        p1_status_alter = get_survivor_status_count(p1_team_final)
+        p2_status_alter = get_survivor_status_count(p2_team_final)
+        
+        features['p1_team_size'] = len(p1_team_final)
+        features['p1_mean_hp_pct'] = get_mean_survivor_hp(p1_team_final)
+        features['p2_mean_hp_pct'] = get_mean_survivor_hp(p2_team_final)
+        features['fnt_diff'] = p1_fnt - p2_fnt
+        features['status_alter_diff'] = p1_status_alter - p2_status_alter
+
+
         features['battle_id'] = battle.get('battle_id')
         if 'player_won' in battle:
             features['player_won'] = int(battle['player_won'])

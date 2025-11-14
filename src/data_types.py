@@ -1,4 +1,4 @@
-from typing import Dict, List, TypedDict
+from typing import Dict, List, TypedDict, Tuple
 
 class PokemonStats(TypedDict):
     base_hp: int

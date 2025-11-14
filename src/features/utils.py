@@ -1,11 +1,11 @@
-from ..data_types import Pokedex
+from ..data_types import *
 from .constants import types_dict
 
 def crit_rate(base_speed: int) -> float:
     rate = base_speed * 100 / 512
     return round(rate, 4)
 
-def get_p2_team(battle: dict, pokedex: Pokedex):
+def get_p2_team(battle: dict, pokedex: Pokedex) -> list[dict]:
     p2_team = []
     seen = set()
 
@@ -23,6 +23,50 @@ def get_p2_team(battle: dict, pokedex: Pokedex):
             seen.add(pokemon_name)
 
     return p2_team
+
+def get_final_team_states(data: dict, p1_initial_team: dict, p2_initial_team: dict) -> Tuple[dict, dict, int, int]:
+    """
+    Computes the final state of P1 and P2 teams by 
+    tracking the last known state of each Pokémon across the battle timeline
+    """
+ 
+    p1_last_known_states = p1_initial_team.copy()
+    p2_last_known_states = p2_initial_team.copy() 
+
+    for turn in data.get("battle_timeline", []):
+        p1_state = turn.get("p1_pokemon_state", {})
+        p2_state = turn.get("p2_pokemon_state", {})
+        
+        p1_name = p1_state.get("name")
+        p2_name = p2_state.get("name")
+
+        if p1_name in p1_last_known_states:
+            p1_last_known_states[p1_name].update(p1_state)
+
+        if p2_name:
+            if p2_name not in p2_last_known_states:
+                p2_last_known_states[p2_name] = p2_state
+            else:
+                p2_last_known_states[p2_name].update(p2_state)
+
+    p1_survivors = {}
+    p1_fainted_count = 0
+    for name, state in p1_last_known_states.items():
+        if state.get("status") == "fnt":
+            p1_fainted_count += 1
+        else:
+            p1_survivors[name] = state
+            
+    p2_survivors = {}
+    p2_fainted_count = 0
+    for name, state in p2_last_known_states.items():
+        if state.get("status") == "fnt":
+            p2_fainted_count += 1
+        else:
+            p2_survivors[name] = state
+
+    return p1_survivors, p2_survivors, p1_fainted_count, p2_fainted_count
+
 
 def get_type_matchup_score(p1_types: list, p2_types: list) -> float:
     """
@@ -83,15 +127,15 @@ def get_type_matchup_score(p1_types: list, p2_types: list) -> float:
 
 def analyze_defense(pokemon: dict) -> dict:
     """
-    Computes the defensive multipliers of a Pokémon against all attacking types.
+    Computes the defensive multipliers of a pokemon against all attacking types.
 
-    For each attacking type, the function determines how much damage the Pokémon
+    For each attacking type, the function determines how much damage the pokemon
     would receive based on its own defensive typings. The calculation follows 
     standard type effectiveness rules:
 
-      - Immunity → 0x
-      - Resistance → 0.5x (stacking to 0.25x if double resistant)
-      - Weakness → 2x (stacking to 4x if double weak)
+      - Immunity -> 0x
+      - Resistance -> 0.5x (stacking to 0.25x if double resistant)
+      - Weakness -> 2x (stacking to 4x if double weak)
 
     Returned dictionary groups attacking types into the following categories:
         - "0x":    Types that deal no damage (immunity)

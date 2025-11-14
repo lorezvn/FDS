@@ -8,12 +8,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 import src.config as config
 
-def _get_tuned_params(name, estimator, X_train, y_train):
-    """
-    Funzione "intelligente" che sa quale griglia di parametri usare
-    per ogni modello ed esegue il tuning.
-    """
-    
+def get_tuned_params(name, estimator, X_train, y_train):
+
     param_grid = {} 
     
     match name:
@@ -77,10 +73,10 @@ def _get_tuned_params(name, estimator, X_train, y_train):
 def get_final_model(X_train, y_train, tuning=False):
     estimators = [
         ('lr', make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=1000, random_state=config.RANDOM_STATE))),
-        ('rf', RandomForestClassifier(n_estimators=600, max_features='sqrt', max_depth=15, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS)),
-        ('lgbm', LGBMClassifier(num_leaves=20, n_estimators=200, max_depth=5, learning_rate=0.05, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS, verbose=-1)),
+        ('rf', RandomForestClassifier(n_estimators=400, max_features='sqrt', max_depth=15, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS)),
+        ('lgbm', LGBMClassifier(num_leaves=20, n_estimators=200, max_depth=7, learning_rate=0.05, random_state=config.RANDOM_STATE, n_jobs=config.N_JOBS, verbose=-1)),
         #('xgb', XGBClassifier(eval_metric='logloss', random_state=config.RANDOM_STATE)),
-        ('svc', make_pipeline(StandardScaler(), SVC(gamma=0.01, C=1, probability=False, random_state=config.RANDOM_STATE)))
+        ('svc', make_pipeline(StandardScaler(), SVC(gamma='scale', C=1, probability=False, random_state=config.RANDOM_STATE)))
     ]
 
     if tuning:
@@ -90,7 +86,7 @@ def get_final_model(X_train, y_train, tuning=False):
 
         for name, estimator in estimators:
 
-            best_params = _get_tuned_params(name, estimator, X_train, y_train)
+            best_params = get_tuned_params(name, estimator, X_train, y_train)
             
             if name == 'lr':
                 best_params.update({'max_iter': 1000, 'solver': 'lbfgs', 'random_state': config.RANDOM_STATE})

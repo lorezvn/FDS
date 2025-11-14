@@ -1,5 +1,5 @@
 RANDOM_STATE = 42
-N_JOBS = -1
+N_JOBS = 4
 CV_FOLDS = 5
 
 TRAIN_PATH = "dataset/train.jsonl"
