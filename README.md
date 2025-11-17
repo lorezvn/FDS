@@ -40,6 +40,7 @@ We train and evaluate a **Stacking Classifier** with:
 	* `src/data_types.py` defines the `Pokedex` datatype.
 	* `src/config.py` global config settings.
 * `notebooks/` contains the main kaggle notebook.
+* `report/` contains the report in eng.
 * `main.py` defines the `BattlePredictor` class that manages the training pipeline.
 
 
