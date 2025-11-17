@@ -21,7 +21,7 @@ We train and evaluate a **Stacking Classifier** with:
 - SVC
 
 **K-fold cross validation** (k=5) was used for a correct evaluation.
-N
+
 ## Results 
 | Model | Mean CV Accuracy |
 |-------|------------------|
