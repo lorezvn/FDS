@@ -1,4 +1,4 @@
-# Pokémons Battles Prediction
+# Pokémon Battles Prediction
 A **machine learning** system that predicts the **winner** of a **_Pokémon_ battle** based on a dataset of structured real battles.
 
 - Lorenzo Zanda (2006432)
